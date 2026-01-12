@@ -20,7 +20,6 @@ interface Props {
 }
 
 export default function TaskForm({ open, onClose, onSubmit, existingTitles, initial }: Props) {
-  // Define state as 'formData' so the handleSubmit logic works
   const [formData, setFormData] = useState({
     title: '',
     revenue: '',
@@ -30,7 +29,6 @@ export default function TaskForm({ open, onClose, onSubmit, existingTitles, init
     notes: '',
   });
 
-  // Effect to populate form data when opening for Edit vs Add
   useEffect(() => {
     if (initial) {
       setFormData({
@@ -57,7 +55,6 @@ export default function TaskForm({ open, onClose, onSubmit, existingTitles, init
     e.preventDefault();
     if (!formData.title) return;
 
-    // [FIX] Construct payload with strict types including createdAt
     const payload: Omit<Task, 'id'> & { id?: string } = {
       id: initial?.id,
       title: formData.title,
@@ -66,9 +63,6 @@ export default function TaskForm({ open, onClose, onSubmit, existingTitles, init
       priority: formData.priority,
       status: formData.status,
       notes: formData.notes,
-      // IMPORTANT: Pass existing createdAt if editing, or a new date if creating.
-      // The useTasks hook will handle the final ID and date logic, 
-      // but this satisfies the strict TypeScript interface here.
       createdAt: initial?.createdAt || new Date().toISOString(),
       completedAt: initial?.completedAt,
     };
