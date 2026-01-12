@@ -2,6 +2,7 @@ import { createContext, useContext, ReactNode } from 'react';
 import { useTasks } from '@/hooks/useTasks';
 import { DerivedTask, Metrics, Task } from '@/types';
 
+// [FIX] Update interface to include clearLastDeleted
 interface TasksContextValue {
   tasks: Task[];
   loading: boolean;
@@ -13,6 +14,7 @@ interface TasksContextValue {
   updateTask: (id: string, patch: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   undoDelete: () => void;
+  clearLastDeleted: () => void;
 }
 
 const TasksContext = createContext<TasksContextValue | undefined>(undefined);
@@ -27,5 +29,3 @@ export function useTasksContext(): TasksContextValue {
   if (!ctx) throw new Error('useTasksContext must be used within TasksProvider');
   return ctx as TasksContextValue;
 }
-
-
