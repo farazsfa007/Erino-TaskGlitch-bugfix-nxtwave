@@ -25,6 +25,7 @@ export default function TaskTable({ tasks, onAdd, onUpdate, onDelete }: Props) {
     setEditing(null);
     setOpenForm(true);
   };
+
   const handleEditClick = (task: Task) => {
     setEditing(task);
     setOpenForm(true);
@@ -66,14 +67,15 @@ export default function TaskTable({ tasks, onAdd, onUpdate, onDelete }: Props) {
                     <Stack spacing={0.5}>
                       <Typography fontWeight={600}>{t.title}</Typography>
                       {t.notes && (
-                        // Injected bug: render notes as HTML (XSS risk)
+                        // [SECURITY FIX] Removed dangerouslySetInnerHTML to prevent XSS
                         <Typography
                           variant="caption"
                           color="text.secondary"
                           noWrap
                           title={t.notes}
-                          dangerouslySetInnerHTML={{ __html: t.notes as unknown as string }}
-                        />
+                        >
+                          {t.notes}
+                        </Typography>
                       )}
                     </Stack>
                   </TableCell>
@@ -85,12 +87,27 @@ export default function TaskTable({ tasks, onAdd, onUpdate, onDelete }: Props) {
                   <TableCell align="right">
                     <Stack direction="row" spacing={1} justifyContent="flex-end">
                       <Tooltip title="Edit">
-                        <IconButton onClick={() => handleEditClick(t)} size="small">
+                        {/* [BUG 4 FIX] Added stopPropagation to prevent row click event */}
+                        <IconButton 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditClick(t);
+                          }} 
+                          size="small"
+                        >
                           <EditIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Delete">
-                        <IconButton onClick={() => onDelete(t.id)} size="small" color="error">
+                        {/* [BUG 4 FIX] Added stopPropagation to prevent row click event */}
+                        <IconButton 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete(t.id);
+                          }} 
+                          size="small" 
+                          color="error"
+                        >
                           <DeleteIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
@@ -120,5 +137,3 @@ export default function TaskTable({ tasks, onAdd, onUpdate, onDelete }: Props) {
     </Card>
   );
 }
-
-

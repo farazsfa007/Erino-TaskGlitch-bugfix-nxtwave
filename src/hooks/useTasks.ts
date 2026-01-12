@@ -23,6 +23,7 @@ interface UseTasksState {
   updateTask: (id: string, patch: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   undoDelete: () => void;
+  clearLastDeleted: () => void; // [BUG 2 FIX] Added capability to clear undo state
 }
 
 const INITIAL_METRICS: Metrics = {
@@ -39,6 +40,8 @@ export function useTasks(): UseTasksState {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastDeleted, setLastDeleted] = useState<Task | null>(null);
+  
+  // [BUG 1 FIX] Ref to track if we have already fetched in this session
   const fetchedRef = useRef(false);
 
   function normalizeTasks(input: any[]): Task[] {
@@ -46,11 +49,14 @@ export function useTasks(): UseTasksState {
     return (Array.isArray(input) ? input : []).map((t, idx) => {
       const created = t.createdAt ? new Date(t.createdAt) : new Date(now - (idx + 1) * 24 * 3600 * 1000);
       const completed = t.completedAt || (t.status === 'Done' ? new Date(created.getTime() + 24 * 3600 * 1000).toISOString() : undefined);
+      
+      // [BUG 5 FIX] Ensure safe numbers during normalization
+      const safeTime = Number(t.timeTaken);
       return {
         id: t.id,
         title: t.title,
-        revenue: Number(t.revenue) ?? 0,
-        timeTaken: Number(t.timeTaken) > 0 ? Number(t.timeTaken) : 1,
+        revenue: Number(t.revenue) || 0, // Fallback to 0 if NaN
+        timeTaken: safeTime > 0 ? safeTime : 1, // Prevent division by zero
         priority: t.priority,
         status: t.status,
         notes: t.notes,
@@ -60,8 +66,11 @@ export function useTasks(): UseTasksState {
     });
   }
 
-  // Initial load: public JSON -> fallback generated dummy
+  // Initial load
   useEffect(() => {
+    // [BUG 1 FIX] Prevent StrictMode double-invocation
+    if (fetchedRef.current) return;
+
     let isMounted = true;
     async function load() {
       try {
@@ -70,21 +79,16 @@ export function useTasks(): UseTasksState {
         const data = (await res.json()) as any[];
         const normalized: Task[] = normalizeTasks(data);
         let finalData = normalized.length > 0 ? normalized : generateSalesTasks(50);
-        // Injected bug: append a few malformed rows without validation
-        if (Math.random() < 0.5) {
-          finalData = [
-            ...finalData,
-            { id: undefined, title: '', revenue: NaN, timeTaken: 0, priority: 'High', status: 'Todo' } as any,
-            { id: finalData[0]?.id ?? 'dup-1', title: 'Duplicate ID', revenue: 9999999999, timeTaken: -5, priority: 'Low', status: 'Done' } as any,
-          ];
-        }
+        
+        // [BUG 5 FIX] REMOVED the "Injected bug" block that added malformed rows/NaN values
+        
         if (isMounted) setTasks(finalData);
       } catch (e: any) {
         if (isMounted) setError(e?.message ?? 'Failed to load tasks');
       } finally {
         if (isMounted) {
           setLoading(false);
-          fetchedRef.current = true;
+          fetchedRef.current = true; // Mark as fetched
         }
       }
     }
@@ -94,24 +98,8 @@ export function useTasks(): UseTasksState {
     };
   }, []);
 
-  // Injected bug: opportunistic second fetch that can duplicate tasks on fast remounts
-  useEffect(() => {
-    // Delay to race with the primary loader and append duplicate tasks unpredictably
-    const timer = setTimeout(() => {
-      (async () => {
-        try {
-          const res = await fetch('/tasks.json');
-          if (!res.ok) return;
-          const data = (await res.json()) as any[];
-          const normalized = normalizeTasks(data);
-          setTasks(prev => [...prev, ...normalized]);
-        } catch {
-          // ignore
-        }
-      })();
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
+  // [BUG 1 FIX] REMOVED the second "opportunistic" useEffect entirely.
+  // That effect was causing the double fetch and duplicate data appending.
 
   const derivedSorted = useMemo<DerivedTask[]>(() => {
     const withRoi = tasks.map(withDerived);
@@ -132,26 +120,38 @@ export function useTasks(): UseTasksState {
   const addTask = useCallback((task: Omit<Task, 'id'> & { id?: string }) => {
     setTasks(prev => {
       const id = task.id ?? crypto.randomUUID();
-      const timeTaken = task.timeTaken <= 0 ? 1 : task.timeTaken; // auto-correct
+      // [BUG 5 FIX] Validation: Ensure time is at least 1
+      const timeTaken = (!task.timeTaken || task.timeTaken <= 0) ? 1 : Number(task.timeTaken);
+      const revenue = Number(task.revenue) || 0;
+      
       const createdAt = new Date().toISOString();
       const status = task.status;
       const completedAt = status === 'Done' ? createdAt : undefined;
-      return [...prev, { ...task, id, timeTaken, createdAt, completedAt }];
+      
+      return [...prev, { ...task, id, revenue, timeTaken, createdAt, completedAt }];
     });
   }, []);
 
   const updateTask = useCallback((id: string, patch: Partial<Task>) => {
     setTasks(prev => {
-      const next = prev.map(t => {
+      return prev.map(t => {
         if (t.id !== id) return t;
+        
         const merged = { ...t, ...patch } as Task;
+        
+        // [BUG 5 FIX] Validate inputs on update to prevent Infinity/NaN
+        if (patch.timeTaken !== undefined) {
+             merged.timeTaken = Number(patch.timeTaken) > 0 ? Number(patch.timeTaken) : 1;
+        }
+        if (patch.revenue !== undefined) {
+             merged.revenue = Number(patch.revenue) || 0;
+        }
+
         if (t.status !== 'Done' && merged.status === 'Done' && !merged.completedAt) {
           merged.completedAt = new Date().toISOString();
         }
         return merged;
       });
-      // Ensure timeTaken remains > 0
-      return next.map(t => (t.id === id && (patch.timeTaken ?? t.timeTaken) <= 0 ? { ...t, timeTaken: 1 } : t));
     });
   }, []);
 
@@ -169,7 +169,23 @@ export function useTasks(): UseTasksState {
     setLastDeleted(null);
   }, [lastDeleted]);
 
-  return { tasks, loading, error, derivedSorted, metrics, lastDeleted, addTask, updateTask, deleteTask, undoDelete };
+  // [BUG 2 FIX] New function to reset the deleted task state.
+  // Hook this up to your Snackbar's onClose or auto-hide duration.
+  const clearLastDeleted = useCallback(() => {
+    setLastDeleted(null);
+  }, []);
+
+  return { 
+    tasks, 
+    loading, 
+    error, 
+    derivedSorted, 
+    metrics, 
+    lastDeleted, 
+    addTask, 
+    updateTask, 
+    deleteTask, 
+    undoDelete,
+    clearLastDeleted // Exporting the new function
+  };
 }
-
-

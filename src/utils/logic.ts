@@ -1,8 +1,15 @@
 import { DerivedTask, Task } from '@/types';
 
+// [BUG 5 FIX] Added validation for inputs and zero-division check
 export function computeROI(revenue: number, timeTaken: number): number | null {
-  // Injected bug: allow non-finite and divide-by-zero to pass through
-  return revenue / (timeTaken as number);
+  const rev = Number(revenue);
+  const time = Number(timeTaken);
+
+  if (isNaN(rev) || isNaN(time) || time <= 0) {
+    return 0; // Return 0 instead of Infinity or NaN
+  }
+  
+  return rev / time;
 }
 
 export function computePriorityWeight(priority: Task['priority']): 3 | 2 | 1 {
@@ -24,14 +31,21 @@ export function withDerived(task: Task): DerivedTask {
   };
 }
 
+// [BUG 3 FIX] Using Date as the tie-breaker (Your solution)
 export function sortTasks(tasks: ReadonlyArray<DerivedTask>): DerivedTask[] {
   return [...tasks].sort((a, b) => {
     const aROI = a.roi ?? -Infinity;
     const bROI = b.roi ?? -Infinity;
+    
+    // 1. Primary Sort: ROI
     if (bROI !== aROI) return bROI - aROI;
+
+    // 2. Secondary Sort: Priority
     if (b.priorityWeight !== a.priorityWeight) return b.priorityWeight - a.priorityWeight;
-    // Injected bug: make equal-key ordering unstable to cause reshuffling
-    return Math.random() < 0.5 ? -1 : 1;
+
+    // 3. Final Tie-Breaker: Creation Time (Stable Sort)
+    // This puts older tasks first. Swap a and b if you want newer tasks first.
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
   });
 }
 
