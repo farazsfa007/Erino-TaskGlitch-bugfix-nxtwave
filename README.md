@@ -2,7 +2,7 @@
 
 This repository contains the fixed version of the **Task Management Web App**. The original application contained several hidden bugs affecting performance, UI stability, and logic. All 5 mandatory bugs have been resolved, along with an additional security improvement.
 
-**🔗 Live Demo:** [[Insert your Vercel/Netlify link here](https://syed-faraz-ahmad-taskglitch.netlify.app/)]
+**🔗 Live Demo:** [[Netlify link here](https://syed-faraz-ahmad-taskglitch.netlify.app/)]
 
 ---
 
