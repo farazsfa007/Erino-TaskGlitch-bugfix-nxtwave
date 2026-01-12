@@ -2,7 +2,7 @@
 
 This repository contains the fixed version of the **Task Management Web App**. The original application contained several hidden bugs affecting performance, UI stability, and logic. All 5 mandatory bugs have been resolved, along with an additional security improvement.
 
-**🔗 Live Demo:** [Insert your Vercel/Netlify link here]
+**🔗 Live Demo:** [[Netlify link here](https://syed-faraz-ahmad-taskglitch.netlify.app/)]
 
 ---
 
@@ -52,7 +52,7 @@ This repository contains the fixed version of the **Task Management Web App**. T
 
 1.  Clone the repository:
     ```bash
-    git clone [https://github.com/yourusername/task-glitch-fixed.git](https://github.com/yourusername/task-glitch-fixed.git)
+    git clone [https://github.com/farazsfa007/Erino-TaskGlitch-bugfix-nxtwave.git](https://github.com/farazsfa007/Erino-TaskGlitch-bugfix-nxtwave.git)
     ```
 2.  Install dependencies:
     ```bash
